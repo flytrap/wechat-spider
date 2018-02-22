@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-__author__ = 'yijingping'
+# __author__ = 'yijingping'
 from django import forms
+
 from .models import Wechat
 
 

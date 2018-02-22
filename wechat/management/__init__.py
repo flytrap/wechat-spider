@@ -1,2 +1,2 @@
 # -*- coding: utf-8 -*-
-__author__ = 'yijingping'
+# __author__ = 'yijingping'

@@ -1,26 +1,25 @@
 # -*- coding: utf-8 -*-
 __author__ = 'yijingping'
-from django.conf.urls import url
+from django.urls import path
 
 from . import views
 
 urlpatterns = [
-    url(r'^$', views.index, name="wechat.index"),
-    url(r'^add/$', views.add, name="wechat.add"),
-    url(r'^(?P<id_>\d+)/edit/$', views.edit, name="wechat.edit"),
-    url(r'^(?P<id_>\d+)/delete/$', views.wechat_delete, name="wechat.wechat_delete"),
-    url(r'^(?P<id_>\d+)/topics/$', views.wechat_topics, name="wechat.wechat_topics"),
-    url(r'^topic/(?P<id_>\d+)/$', views.topic_detail, name="wechat.topic_detail"),
-    url(r'^topic/(?P<id_>\d+)/edit/$', views.topic_edit, name="wechat.topic_edit"),
-    url(r'^topic/$', views.topic_list, name="wechat.topic_list"),
-    url(r'^topic/available/$', views.topic_available_list, name="wechat.topic_available_list"),
+    path('', views.IndexView.as_view(), name="wechat.index"),
+    path('add/', views.add, name="wechat.add"),
+    path('<int:id_>/edit/', views.edit, name="wechat.edit"),
+    path('<int:id_>/delete/', views.wechat_delete, name="wechat.wechat_delete"),
+    path('<int:id_>/topics/', views.WechatTopicView.as_view(), name="wechat.wechat_topics"),
+    path('topic/<int:id_>/', views.topic_detail, name="wechat.topic_detail"),
+    path('topic/<int:id_>/edit/', views.topic_edit, name="wechat.topic_edit"),
+    path('topic/', views.TopicView.as_view(), name="wechat.topic_list"),
+    path('topic/available/', views.TopicAvailableView.as_view(), name="wechat.topic_available_list"),
 
-    url(r'^topic/add/$', views.topic_add, name="wechat.topic_add"),
-    url(r'^search/$', views.search, name="wechat.search"),
+    path('topic/add/', views.topic_add, name="wechat.topic_add"),
+    path('search/', views.search, name="wechat.search"),
 
+    path('keywords/', views.KeywordsView.as_view(), name="wechat.keywords_list"),
 
-    url(r'^keywords/$', views.keywords_list, name="wechat.keywords_list"),
-
-    url(r'^proxy/(?P<id_>\d+)/edit/$', views.proxy_edit, name="wechat.proxy_edit"),
-    url(r'^proxy/status/$', views.proxy_status, name="wechat.proxy_status"),
+    path('proxy/<int:id_>/edit/', views.proxy_edit, name="wechat.proxy_edit"),
+    path('proxy/status/', views.proxy_status, name="wechat.proxy_status"),
 ]

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-__author__ = 'yijingping'
+# __author__ = 'yijingping'
 import json
+
 from django import template
 from django.utils.safestring import mark_safe
 

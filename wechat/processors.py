@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-__author__ = 'yijingping'
+# __author__ = 'yijingping'
 from wechat.constants import KIND_DETAIL, KIND_KEYWORD
 from wechat.models import Topic, Wechat
 from wechatspider.util import get_unique_id

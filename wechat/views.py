@@ -1,25 +1,26 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+# __author__ = 'yijingping'
 
-__author__ = 'yijingping'
 import json
-import requests
-from io import StringIO
-from lxml import etree
 from datetime import datetime
-from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponse, JsonResponse
-from django.contrib import messages
-from django.shortcuts import render_to_response, get_object_or_404, redirect
-from django.template import RequestContext
-from django.core.urlresolvers import reverse
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from io import StringIO
+
+import requests
 from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required as django_login_required
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import ListView
+from lxml import etree
+
 from wechat.constants import KIND_DETAIL
 from wechatspider.util import get_redis, login_required
+from .extractors import download_to_oss
 from .forms import WechatForm, WechatConfigForm
 from .models import Wechat, Topic, Proxy, Word
-from .extractors import download_to_oss
 
 CRAWLER_CONFIG = settings.CRAWLER_CONFIG
 
@@ -28,48 +29,51 @@ import logging
 logging.basicConfig()
 
 
-@login_required
-def index(request):
-    context = {}
-    params = request.GET.copy()
-    status = params.get('status', None)
-    if status is None:
-        _obj_list = Wechat.objects.filter().order_by('-update_time')
-    else:
-        _obj_list = Wechat.objects.filter(status=status).order_by('-update_time')
+class LoginRequiredMixin(object):
+    """
+    登陆限定，并指定登陆url
+    """
 
-    paginator = Paginator(_obj_list, 50)  # Show 20 contacts per page
+    @classmethod
+    def as_view(cls, **initkwargs):
+        view = super(LoginRequiredMixin, cls).as_view(**initkwargs)
+        return django_login_required(view, login_url=settings.LOGIN_URL)
 
-    page = request.GET.get('page')
-    try:
-        _objs = paginator.page(page)
-    except PageNotAnInteger:
-        # If page is not an integer, deliver first page.
-        _objs = paginator.page(1)
-    except EmptyPage:
-        # If page is out of range (e.g. 9999), deliver last page of results.
-        _objs = paginator.page(paginator.num_pages)
 
-    r = get_redis()
-    # 获取代理状态
-    proxies = Proxy.objects.filter(kind=Proxy.KIND_DOWNLOAD, status=Proxy.STATUS_SUCCESS)[:1]
-    if len(proxies) > 0:
-        dt = datetime.now() - proxies[0].update_time
-        _proxy_status = '正常' if dt.total_seconds() < 3600 else '异常'
-    else:
-        _proxy_status = '异常'
-    context.update({
-        "active_nav": "wechats",
-        "wechats": _objs,
-        "params": params,
-        "downloader": r.llen(CRAWLER_CONFIG['downloader']) or 0,
-        "antispider": r.get(CRAWLER_CONFIG['antispider']) or 0,
-        "proxy_status": _proxy_status
+class IndexView(LoginRequiredMixin, ListView):
+    model = Wechat
+    template_name = 'wechat/index.html'
+    context_object_name = 'wechats'
+    ordering = ['-update_time']
+    paginate_by = 50
 
-    })
-    print context
+    def get_queryset(self):
+        datas = super().get_queryset()
+        status = self.request.GET.get('status')
+        if status:
+            datas = datas.filter(status=status)
+        return datas
 
-    return render_to_response('wechat/index.html', RequestContext(request, context))
+    def get_context_data(self, *, object_list=None, **kwargs):
+        context = super().get_context_data()
+        r = get_redis()
+        # 获取代理状态
+        proxies = Proxy.objects.filter(kind=Proxy.KIND_DOWNLOAD, status=Proxy.STATUS_SUCCESS)[:1]
+        if len(proxies) > 0:
+            dt = datetime.now() - proxies[0].update_time
+            _proxy_status = '正常' if dt.total_seconds() < 3600 else '异常'
+        else:
+            _proxy_status = '异常'
+        context.update({
+            "active_nav": "wechats",
+            "params": self.request.GET,
+            "downloader": r.llen(CRAWLER_CONFIG['downloader']) or 0,
+            "antispider": r.get(CRAWLER_CONFIG['antispider']) or 0,
+            "proxy_status": _proxy_status
+
+        })
+        # print(context)
+        return context
 
 
 def add(request):
@@ -100,7 +104,7 @@ def edit(request, id_):
             "wechat": wechat,
             "form": form
         })
-        return render_to_response('wechat/edit.html', {}, context_instance=RequestContext(request, context))
+        return render(request, 'wechat/edit.html', context)
     elif request.method == 'POST':
         form = WechatConfigForm(request.POST, instance=wechat)
         if form.is_valid():
@@ -108,7 +112,7 @@ def edit(request, id_):
             if obj.frequency > 0:
                 obj.next_crawl_time = datetime.now()
             else:
-                print obj.status
+                print(obj.status)
                 if obj.status == Wechat.STATUS_DEFAULT:
                     obj.status = Wechat.STATUS_DISABLE
             obj.save()
@@ -129,101 +133,71 @@ def wechat_delete(request, id_):
     return redirect(next_page)
 
 
-@login_required
-def topic_list(request):
-    context = {}
-    # 文章信息
-    params = request.GET.copy()
-    keywords = params.get('keywords','')
-    order = params.get('order', '-publish_time')
-    topics = Topic.objects
-    if keywords.strip():
-        topics = topics.filter(title__contains=keywords.strip())
+class TopicView(LoginRequiredMixin, ListView):
+    model = Topic
+    template_name = 'wechat/topic_list.html'
+    context_object_name = 'topics'
+    paginate_by = 50
 
-    _obj_list = topics.order_by(order.strip())
+    def get_queryset(self):
+        keywords = self.request.GET.get('keywords', '')
+        order = self.request.GET.get('order', '-publish_time')
+        return super().get_queryset().filter(title__contains=keywords.strip()).order_by(order)
 
-    paginator = Paginator(_obj_list, 50)  # Show 10 contacts per page
-
-    page = request.GET.get('page')
-    try:
-        _objs = paginator.page(page)
-    except PageNotAnInteger:
-        # If page is not an integer, deliver first page.
-        _objs = paginator.page(1)
-    except EmptyPage:
-        # If page is out of range (e.g. 9999), deliver last page of results.
-        _objs = paginator.page(paginator.num_pages)
-
-    context.update({
-        "active_nav": "topics",
-        "topics": _objs,
-        "params": params
-    })
-    return render_to_response('wechat/topic_list.html', {}, context_instance=RequestContext(request, context))
+    def get_context_data(self, *, object_list=None, **kwargs):
+        context = super().get_context_data()
+        context.update({
+            "active_nav": "topics",
+            "params": self.request.GET
+        })
+        return context
 
 
-@login_required
-def topic_available_list(request):
-    context = {}
-    # 文章信息
-    params = request.GET.copy()
-    _obj_list = Topic.objects.filter(available='可用').order_by('-publish_time')
+class TopicAvailableView(LoginRequiredMixin, ListView):
+    model = Topic
+    template_name = 'wechat/topic_available_list.html'
+    context_object_name = 'topics'
+    paginate_by = 50
+    ordering = ['-publish_time']
 
-    paginator = Paginator(_obj_list, 50)  # Show 10 contacts per page
+    def get_queryset(self):
+        return super().get_queryset().filter(available='可用')
 
-    page = request.GET.get('page')
-    try:
-        _objs = paginator.page(page)
-    except PageNotAnInteger:
-        # If page is not an integer, deliver first page.
-        _objs = paginator.page(1)
-    except EmptyPage:
-        # If page is out of range (e.g. 9999), deliver last page of results.
-        _objs = paginator.page(paginator.num_pages)
-
-    context.update({
-        "active_nav": "topics_available",
-        "topics": _objs,
-        "params": params
-    })
-    return render_to_response('wechat/topic_available_list.html', {}, context_instance=RequestContext(request, context))
+    def get_context_data(self, *, object_list=None, **kwargs):
+        context = super().get_context_data()
+        context.update({
+            "active_nav": "topics_available",
+            "params": self.request.GET
+        })
+        return context
 
 
-def wechat_topics(request, id_):
-    wechat = get_object_or_404(Wechat, pk=id_)
-    context = {}
-    # 文章信息
-    params = request.GET.copy()
-    _obj_list = Topic.objects.filter(wechat=wechat).order_by('-update_time')
+class WechatTopicView(LoginRequiredMixin, ListView):
+    model = Topic
+    template_name = 'wechat/wechat_topics.html'
+    context_object_name = "topics"
+    paginate_by = 50
+    ordering = ['-update_time']
 
-    paginator = Paginator(_obj_list, 50)  # Show 10 contacts per page
+    def get_queryset(self):
+        wechat = get_object_or_404(Wechat, pk=self.kwargs.get('id_'))
+        self.extra_context = {'wechat': wechat}
+        return super().get_queryset().filter(wechat=wechat)
 
-    page = request.GET.get('page')
-    try:
-        _objs = paginator.page(page)
-    except PageNotAnInteger:
-        # If page is not an integer, deliver first page.
-        _objs = paginator.page(1)
-    except EmptyPage:
-        # If page is out of range (e.g. 9999), deliver last page of results.
-        _objs = paginator.page(paginator.num_pages)
-
-    context.update({
-        "active_nav": "wechats",
-        "wechat": wechat,
-        "topics": _objs,
-        "params": params
-    })
-    return render_to_response('wechat/wechat_topics.html', {}, context_instance=RequestContext(request, context))
+    def get_context_data(self, *, object_list=None, **kwargs):
+        context = super().get_context_data()
+        context.update({
+            "active_nav": "wechats",
+            "params": self.request.GET
+        })
+        return context
 
 
 @csrf_exempt
 @login_required
 def topic_detail(request, id_):
     topic = get_object_or_404(Topic, pk=id_)
-    return render_to_response('wechat/topic_detail.html', {}, context_instance=RequestContext(request, {
-        "topic": topic
-    }))
+    return render(request, 'wechat/topic_detail.html', context={"topic": topic})
 
 
 @csrf_exempt
@@ -260,7 +234,7 @@ def topic_add(request):
 def search(request):
     query = request.GET.get('query')
     wechats = search_wechat(query)
-    return render_to_response('wechat/search_content.html', RequestContext(request, {"wechats": wechats}))
+    return render(request, 'wechat/search_content.html', context={"wechats": wechats})
 
 
 def search_wechat(query):
@@ -271,7 +245,7 @@ def search_wechat(query):
         }
     else:
         proxies = {}
-    print proxies
+    print(proxies)
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
                       'Chrome/41.0.2272.118 Safari/537.36'
@@ -306,39 +280,28 @@ def search_wechat(query):
     return wechats
 
 
-@login_required
-def keywords_list(request):
-    context = {}
-    # 文章信息
-    params = request.GET.copy()
-    _obj_list = Word.objects.order_by('-id')
+class KeywordsView(LoginRequiredMixin, ListView):
+    model = Word
+    template_name = 'wechat/keywords_list.html'
+    context_object_name = "keywords"
+    paginate_by = 50
+    ordering = ['-id']
 
-    paginator = Paginator(_obj_list, 50)  # Show 10 contacts per page
-
-    page = request.GET.get('page')
-    try:
-        _objs = paginator.page(page)
-    except PageNotAnInteger:
-        # If page is not an integer, deliver first page.
-        _objs = paginator.page(1)
-    except EmptyPage:
-        # If page is out of range (e.g. 9999), deliver last page of results.
-        _objs = paginator.page(paginator.num_pages)
-
-    context.update({
-        "active_nav": "keywords",
-        "keywords": _objs,
-        "params": params
-    })
-    return render_to_response('wechat/keywords_list.html', {}, context_instance=RequestContext(request, context))
+    def get_context_data(self, *, object_list=None, **kwargs):
+        context = super().get_context_data()
+        context.update({
+            "active_nav": "keywords",
+            "params": self.request.GET
+        })
+        return context
 
 
 @csrf_exempt
 def proxy_edit(request, id_):
     proxy = get_object_or_404(Proxy, pk=id_)
     if request.method == 'POST':
-        print proxy.host, request.POST['host']
-        print proxy.port, request.POST['port']
+        print(proxy.host, request.POST['host'])
+        print(proxy.port, request.POST['port'])
         if proxy.host != request.POST['host'] or proxy.port != int(request.POST['port']):
             proxy.host = request.POST['host']
             proxy.port = request.POST['port']
@@ -362,13 +325,11 @@ def proxy_status(request):
         })
 
 
-### api 接口
-
-
+# api 接口
 def api_search(request):
     query = request.GET.get('query')
     wechats = search_wechat(query)
-    print wechats
+    print(wechats)
     return JsonResponse({
         'ret': 0,
         'data': wechats

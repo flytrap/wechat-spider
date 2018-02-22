@@ -89,6 +89,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='topic',
             name='wechat',
-            field=models.ForeignKey(verbose_name=b'\xe5\x85\xac\xe4\xbc\x97\xe5\x8f\xb7', to='wechat.Wechat'),
+            field=models.ForeignKey(verbose_name=b'\xe5\x85\xac\xe4\xbc\x97\xe5\x8f\xb7', to='wechat.Wechat', on_delete=models.CASCADE),
         ),
     ]

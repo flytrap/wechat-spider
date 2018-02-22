@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-__author__ = 'yijingping'
-import redis
+# __author__ = 'yijingping'
 import json
-from django.conf import settings
 from hashlib import md5
+
+import redis
+from django.conf import settings
 from django.shortcuts import redirect
+
 REDIS_POOL = None
 
 
@@ -22,11 +24,11 @@ def get_redis():
 
 def get_unique_id(url):
     link = get_link_from_url(url)
-    return md5(link).hexdigest()
+    return md5(link.encode('utf-8')).hexdigest()
 
 
 def get_link_from_url(url):
-    if isinstance(url, basestring):
+    if isinstance(url, str):
         return url
     elif isinstance(url, dict):
         return json.dumps(url)
@@ -38,12 +40,14 @@ def login_required(f):
     :param f: 函数
     :return:
     """
+
     def _wrapper(request, *args, **kwargs):
         user = request.user
-        if not user.is_authenticated():
+        if not user.is_authenticated:
             return redirect('%s?next=%s' % (settings.LOGIN_URL, request.path))
         else:
-            #request_context = RequestContext(request)
-            #request_context.push({"admin_user": user})
+            # request_context = RequestContext(request)
+            # request_context.push({"admin_user": user})
             return f(request, *args, **kwargs)
+
     return _wrapper

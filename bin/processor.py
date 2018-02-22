@@ -1,25 +1,25 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-__author__ = 'yijingping'
-# 加载django环境
-import sys
+# __author__ = 'yijingping'
+
+import json
+import logging
 import os
-reload(sys)
-sys.setdefaultencoding('utf8') 
+import sys
+
+import django
+# from django.utils.encoding import smart_str, smart_unicode
+from django.conf import settings
+
+# 加载django环境
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'wechatspider.settings'
-import django
 django.setup()
 
-import _mysql
-from datetime import datetime
-import json
-from django.utils.encoding import smart_str, smart_unicode
-from django.conf import settings
 from wechat.models import Topic
 from wechat.processors import DjangoModelBackend
-from wechatspider.util import get_redis, get_unique_id
-import logging
+from wechatspider.util import get_redis
+
+
 logger = logging.getLogger()
 
 
@@ -44,11 +44,11 @@ class Processor():
             try:
                 rsp = r.brpop(settings.CRAWLER_CONFIG["processor"])
             except Exception as e:
-                print e
+                print(e)
                 continue
 
             data = json.loads(rsp[1])
-            logger.info(json.dumps(data, encoding="UTF-8", ensure_ascii=False))
+            logger.info(json.dumps(data, ensure_ascii=False))
             self.process(data)
 
 

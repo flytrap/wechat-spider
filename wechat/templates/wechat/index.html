@@ -79,9 +79,9 @@
               <td>{{ item.frequency}}</td>
               <td>{% if item.frequency > 0 %}{{ item.next_crawl_time}}{% else %}N/A{% endif %}</td>
               <td>{{item.update_time}}</td>
-              <td><a href="{% url 'wechat.wechat_topics' item.id %}">{{ item.last_day_topics_count}}</a></td>
-              <td><a href="{% url 'wechat.wechat_topics' item.id %}">{{ item.last_week_topics_count}}</a></td>
-              <td><a href="{% url 'wechat.wechat_topics' item.id %}">{{ item.total_topics_count}}</a></td>
+              <td><a href="{% url 'wechat.wechat_topics' item.id %}">{{ item.last_day_topics_count }}</a></td>
+              <td><a href="{% url 'wechat.wechat_topics' item.id %}">{{ item.last_week_topics_count }}</a></td>
+              <td><a href="{% url 'wechat.wechat_topics' item.id %}">{{ item.total_topics_count }}</a></td>
               <td>
                 <a href="{% url 'wechat.wechat_topics' item.id %}">已爬取文章</a><br/>
                 <a target="_blank" href="http://weixin.sogou.com/weixin?type=1&query={{ item.wechatid }}&ie=utf8">源文章列表</a><br/>

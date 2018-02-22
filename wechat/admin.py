@@ -1,4 +1,5 @@
 from django.contrib import admin
+
 from .models import Wechat, Topic, Proxy, Word
 
 
@@ -6,12 +7,14 @@ class WechatAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'wechatid')
     search_fields = ['name']
 
+
 admin.site.register(Wechat, WechatAdmin)
 
 
 class TopicAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'wechat')
     search_fields = ['title']
+
 
 admin.site.register(Topic, TopicAdmin)
 

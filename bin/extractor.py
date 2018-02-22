@@ -1,24 +1,23 @@
 # -*- coding: utf-8 -*-
-__author__ = 'yijingping'
-# 加载django环境
+# __author__ = 'yijingping'
+import json
+import logging
+import os
 import sys
 
-import os
+import django
+from django.conf import settings
 
-reload(sys)
-sys.setdefaultencoding('utf8')
+# 加载django环境
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'wechatspider.settings'
-import django
-
 django.setup()
 
-import json
-from django.conf import settings
-from wechatspider.util import get_redis
-from wechat.extractors import XPathExtractor, PythonExtractor, ImageExtractor, VideoExtractor, WechatContentExtractor
 from wechat.constants import KIND_DETAIL, KIND_KEYWORD
-import logging
+from wechat.extractors import XPathExtractor, PythonExtractor, ImageExtractor, VideoExtractor, WechatContentExtractor
+from wechatspider.util import get_redis
+
+
 
 logger = logging.getLogger()
 
@@ -71,8 +70,13 @@ NORMAL_RULES = [
             },
             {
                 "kind": "python",
-                "data": "from lxml import html;out_val=''.join([html.tostring(child, encoding='unicode') for child in "
-                        "in_val])"
+                "data": '''
+from lxml import html
+content_list = []
+for child in in_val:
+    content_list.append(html.tostring(child, encoding='unicode'))
+out_val = ''.join(content_list)
+'''
             },
             {
                 "kind": "image",
@@ -187,8 +191,13 @@ DETAIL_RULES = [
             },
             {
                 "kind": "python",
-                "data": "from lxml import html;out_val=''.join([html.tostring(child, encoding='unicode') for child in "
-                        "in_val])"
+                "data": '''
+from lxml import html
+content_list = []
+for child in in_val:
+    content_list.append(html.tostring(child, encoding='unicode'))
+out_val = ''.join(content_list)
+'''
             },
             {
                 "kind": "image",
@@ -424,7 +433,7 @@ class Extractor(object):
             try:
                 data = r.brpop(settings.CRAWLER_CONFIG["extractor"])
             except Exception as e:
-                print e
+                print(e)
                 continue
             # print data
             data = json.loads(data[1])

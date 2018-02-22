@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-__author__ = 'yijingping'
+# __author__ = 'yijingping'
 from datetime import date, datetime, timedelta
 
 from django.db import models
@@ -46,7 +46,7 @@ class Wechat(models.Model):
 
 
 class Topic(models.Model):
-    wechat = models.ForeignKey('Wechat', verbose_name='公众号')
+    wechat = models.ForeignKey('Wechat', verbose_name='公众号', on_delete=models.CASCADE)
     unique_id = models.CharField(unique=True, max_length=100, verbose_name='url的md5值')
     words = models.IntegerField(default=0, verbose_name='字数')
 

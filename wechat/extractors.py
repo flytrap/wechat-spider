@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
-__author__ = 'yijingping'
+# __author__ = 'yijingping'
+import logging
+import re
 from abc import ABCMeta
 from abc import abstractmethod
-import requests
-import oss2
-import re
-from bs4 import BeautifulSoup
-from oss2.exceptions import NotFound
 from copy import copy
 from hashlib import md5
-from lxml import etree
 from io import StringIO
-from django.conf import settings
-import logging
-logger = logging.getLogger()
 
+import oss2
+import requests
+from bs4 import BeautifulSoup
+from django.conf import settings
+from lxml import etree
+from oss2.exceptions import NotFound
+
+logger = logging.getLogger()
 
 OSS2_CONF = settings.OSS2_CONFIG
 BUCKET = None
@@ -81,7 +82,7 @@ class ImageExtractor(BaseExtractor):
         res = None
         if not d:
             return d
-        elif isinstance(d, basestring):
+        elif isinstance(d, str):
             if d.startswith('http'):
                 ## 内容是图片地址
                 res = download_to_oss(d, OSS2_CONF["IMAGES_PATH"])
@@ -116,7 +117,7 @@ class VideoExtractor(BaseExtractor):
         new_url = None
         if not d:
             return d
-        elif isinstance(d, basestring):
+        elif isinstance(d, str):
             new_url = download_to_oss(d, OSS2_CONF["VIDEOS_PATH"])
         elif isinstance(d, list):
             new_url = [download_to_oss(item, OSS2_CONF["VIDEOS_PATH"]) for item in d]
@@ -127,11 +128,16 @@ class VideoExtractor(BaseExtractor):
 class XPathExtractor(BaseExtractor):
     def __init__(self, content, rule):
         htmlparser = etree.HTMLParser()
-        self.tree = etree.parse(StringIO(content), htmlparser)
-        self.rule = rule
+        self.tree = None
+        if content:
+            self.tree = etree.parse(StringIO(content), htmlparser)
+            self.rule = rule
 
     def extract(self):
-        return self.tree.xpath(self.rule)
+        if self.tree:
+            return self.tree.xpath(self.rule)
+        else:
+            return ''
 
 
 class PythonExtractor(BaseExtractor):
@@ -153,11 +159,11 @@ class PythonExtractor(BaseExtractor):
             return res
 
 
-
 class WechatContentExtractor(BaseExtractor):
     """
     去掉投票的iframe,将图片和视频的宽高变为auto
     """
+
     def __init__(self, data):
         self.data = data
 
@@ -166,9 +172,9 @@ class WechatContentExtractor(BaseExtractor):
         try:
             # 去掉图片蒙版
             res = res.replace('var occupyImg = ', '')
-            bs=BeautifulSoup(res)
+            bs = BeautifulSoup(res, 'lxml')
             # 去掉投票的iframe
-            vote = bs.find('span', {'class':'vote_area'})
+            vote = bs.find('span', {'class': 'vote_area'})
             if vote:
                 vote.replace_with('')
             # 将图片和视频的宽高变为auto，src替换为data-src
@@ -195,10 +201,10 @@ class WechatContentExtractor(BaseExtractor):
                     s = re.sub(r'(height=\d+[\.\d+]*)', 'height=auto', s)
                     s = re.sub(r'(width=\d+[\.\d+]*)', 'width=auto', s)
                     item['data-src'] = s
-                #if item.get('style'):
-                #    item['style'] = re.sub(r'(\w+px)', 'auto', item['style'])
+                    # if item.get('style'):
+                    #    item['style'] = re.sub(r'(\w+px)', 'auto', item['style'])
 
-            res = unicode(bs)
+            res = str(bs)
         except Exception as e:
             logger.exception(e)
         finally:

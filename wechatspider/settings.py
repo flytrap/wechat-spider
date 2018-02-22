@@ -21,12 +21,12 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = ''
+SECRET_KEY = 'fdsafsaf'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['192.168.3.197', '0.0.0.0']
 
 # Application definition
 
@@ -37,22 +37,25 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
+    'rest_framework',
+    'rest_framework_swagger',
     'wechatspider',
     'wechat',
 
 )
 
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
-)
+    # 'wechat.middleware.TestMiddleware',
+
+    # 'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
+]
 
 ROOT_URLCONF = 'wechatspider.urls'
 
@@ -168,6 +171,9 @@ CRAWLER_CONFIG = {
 }
 CRAWLER_GLOBAL_LIMIT_SPEED = 20 * 1000  # 毫秒
 
+# 开启 Chrome headless 模式
+HEADLESS = True
+
 # aliyun oss2
 OSS2_ENABLE = False
 OSS2_CONFIG = {
@@ -181,7 +187,7 @@ OSS2_CONFIG = {
     "CDN_DOMAIN": "pystats.bowenpay.com"
 }
 LOGIN_URL = '/admin/login/'
-## Import local settings
+# Import local settings
 try:
     from local_settings import *
 except ImportError:
@@ -193,3 +199,23 @@ except ImportError:
         "settings.py does indeed exist, it's causing an ImportError somehow.)\n" % __file__)
     sys.stderr.write("\nFor debugging purposes, the exception was:\n\n")
     traceback.print_exc()
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_jwt.authentication.JSONWebTokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ),
+}
+
+
+SWAGGER_SETTINGS = {
+    # 'DOC_EXPANSION': 'list',
+    'JSON_EDITOR': True,
+    'LOGIN_URL': 'rest_framework:login',
+    'LOGOUT_URL': 'rest_framework:logout',
+    'USE_SESSION_AUTH': True,
+}
